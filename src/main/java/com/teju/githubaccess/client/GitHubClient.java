@@ -15,30 +15,32 @@ public class GitHubClient {
     @Autowired
     private WebClient webClient;
 
-    // Get repos (USER based)
+    
     public List<Repo> getRepos(String org) {
         try {
             return webClient.get()
-                    .uri("/users/{org}/repos?per_page=100", org)
+                    .uri("/orgs/{org}/repos?per_page=100", org)
                     .retrieve()
                     .bodyToFlux(Repo.class)
                     .collectList()
                     .block();
         } catch (Exception e) {
+            System.out.println("Error fetching repos: " + e.getMessage());
             return Collections.emptyList();
         }
     }
 
-    // Get contributors (works for public repos)
+    // collaborators instead of contributors
     public List<User> getCollaborators(String org, String repo) {
         try {
             return webClient.get()
-                    .uri("/repos/{org}/{repo}/contributors?per_page=100", org, repo)
+                    .uri("/repos/{org}/{repo}/collaborators?per_page=100", org, repo)
                     .retrieve()
                     .bodyToFlux(User.class)
                     .collectList()
                     .block();
         } catch (Exception e) {
+            System.out.println("Error fetching collaborators: " + e.getMessage());
             return Collections.emptyList();
         }
     }
