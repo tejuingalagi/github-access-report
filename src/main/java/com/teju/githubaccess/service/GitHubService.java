@@ -21,7 +21,7 @@ public class GitHubService {
 
         List<Repo> repos = gitHubClient.getRepos(org);
 
-        // Thread-safe map (important for parallel)
+        // Thread-safe map (important for parallel processing)
         Map<String, List<RepoAccess>> map = new ConcurrentHashMap<>();
 
         // Parallel processing (for scale)
@@ -30,13 +30,32 @@ public class GitHubService {
             List<User> users = gitHubClient.getCollaborators(org, repo.getName());
 
             for (User user : users) {
-            	RepoAccess repoAccess = new RepoAccess();
-            	repoAccess.setRepository(repo.getName());
-            	repoAccess.setAccess("COLLABORATOR");
 
-            	map.computeIfAbsent(user.getLogin(),
-            	        k -> Collections.synchronizedList(new ArrayList<>()))
-            	   .add(repoAccess);;
+                RepoAccess repoAccess = new RepoAccess();
+                repoAccess.setRepository(repo.getName());
+
+                // Determine access level
+                String access;
+
+                if (user.getPermissions() != null) {
+                    if (user.getPermissions().isAdmin()) {
+                        access = "ADMIN";
+                    } else if (user.getPermissions().isPush()) {
+                        access = "WRITE";
+                    } else {
+                        access = "READ";
+                    }
+                } else {
+                    access = "UNKNOWN";
+                }
+
+                repoAccess.setAccess(access);
+
+                // Thread-safe addition
+                map.computeIfAbsent(
+                        user.getLogin(),
+                        k -> Collections.synchronizedList(new ArrayList<>())
+                ).add(repoAccess);
             }
         });
 
