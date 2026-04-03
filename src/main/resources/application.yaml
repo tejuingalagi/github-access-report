@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: github-access-report
+
+github:
+  token: YOUR_GITHUB_TOKEN
+  base-url: https://api.github.com
