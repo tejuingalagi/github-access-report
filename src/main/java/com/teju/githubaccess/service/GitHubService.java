@@ -34,8 +34,9 @@ public class GitHubService {
             	repoAccess.setRepository(repo.getName());
             	repoAccess.setAccess("CONTRIBUTOR");
 
-            	map.computeIfAbsent(user.getLogin(), k -> new ArrayList<>())
-            	   .add(repoAccess);
+            	map.computeIfAbsent(user.getLogin(),
+            	        k -> Collections.synchronizedList(new ArrayList<>()))
+            	   .add(repoAccess);;
             }
         });
 
