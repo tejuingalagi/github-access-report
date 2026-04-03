@@ -32,7 +32,7 @@ public class GitHubService {
             for (User user : users) {
             	RepoAccess repoAccess = new RepoAccess();
             	repoAccess.setRepository(repo.getName());
-            	repoAccess.setAccess("CONTRIBUTOR");
+            	repoAccess.setAccess("COLLABORATOR");
 
             	map.computeIfAbsent(user.getLogin(),
             	        k -> Collections.synchronizedList(new ArrayList<>()))
