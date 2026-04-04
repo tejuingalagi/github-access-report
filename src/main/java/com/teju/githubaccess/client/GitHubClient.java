@@ -15,22 +15,36 @@ public class GitHubClient {
     @Autowired
     private WebClient webClient;
 
-    
+    // Supports both ORG and USER
     public List<Repo> getRepos(String org) {
         try {
+            // Try organization first
             return webClient.get()
                     .uri("/orgs/{org}/repos?per_page=100", org)
                     .retrieve()
                     .bodyToFlux(Repo.class)
                     .collectList()
                     .block();
+
         } catch (Exception e) {
-            System.out.println("Error fetching repos: " + e.getMessage());
-            return Collections.emptyList();
+            System.err.println("Org not found, falling back to user repos");
+
+            try {
+                // Fallback to user repos
+                return webClient.get()
+                        .uri("/users/{org}/repos?per_page=100", org)
+                        .retrieve()
+                        .bodyToFlux(Repo.class)
+                        .collectList()
+                        .block();
+
+            } catch (Exception ex) {
+                System.err.println("Error fetching repos: " + ex.getMessage());
+                return Collections.emptyList();
+            }
         }
     }
 
-    // collaborators instead of contributors
     public List<User> getCollaborators(String org, String repo) {
         try {
             return webClient.get()
@@ -39,8 +53,9 @@ public class GitHubClient {
                     .bodyToFlux(User.class)
                     .collectList()
                     .block();
+
         } catch (Exception e) {
-            System.out.println("Error fetching collaborators: " + e.getMessage());
+            System.err.println("Error fetching collaborators: " + e.getMessage());
             return Collections.emptyList();
         }
     }
