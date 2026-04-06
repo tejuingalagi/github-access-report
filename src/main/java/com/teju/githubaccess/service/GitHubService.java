@@ -1,11 +1,7 @@
 package com.teju.githubaccess.service;
 
 import com.teju.githubaccess.client.GitHubClient;
-import com.teju.githubaccess.model.Repo;
-import com.teju.githubaccess.model.RepoAccess;
-import com.teju.githubaccess.model.User;
-import com.teju.githubaccess.model.UserRepoResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.teju.githubaccess.model.*;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -14,17 +10,18 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class GitHubService {
 
-    @Autowired
-    private GitHubClient gitHubClient;
+    private final GitHubClient gitHubClient;
+
+    public GitHubService(GitHubClient gitHubClient) {
+        this.gitHubClient = gitHubClient;
+    }
 
     public List<UserRepoResponse> getAccessReport(String org) {
 
         List<Repo> repos = gitHubClient.getRepos(org);
 
-        // Thread-safe map (important for parallel processing)
         Map<String, List<RepoAccess>> map = new ConcurrentHashMap<>();
 
-        // Parallel processing (for scale)
         repos.parallelStream().forEach(repo -> {
 
             List<User> users = gitHubClient.getCollaborators(org, repo.getName());
@@ -34,7 +31,6 @@ public class GitHubService {
                 RepoAccess repoAccess = new RepoAccess();
                 repoAccess.setRepository(repo.getName());
 
-                // Determine access level
                 String access;
 
                 if (user.getPermissions() != null) {
@@ -51,7 +47,6 @@ public class GitHubService {
 
                 repoAccess.setAccess(access);
 
-                // Thread-safe addition
                 map.computeIfAbsent(
                         user.getLogin(),
                         k -> Collections.synchronizedList(new ArrayList<>())
@@ -59,7 +54,6 @@ public class GitHubService {
             }
         });
 
-        // Convert Map → List<Response>
         List<UserRepoResponse> response = new ArrayList<>();
 
         for (Map.Entry<String, List<RepoAccess>> entry : map.entrySet()) {

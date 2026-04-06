@@ -2,7 +2,6 @@ package com.teju.githubaccess.client;
 
 import com.teju.githubaccess.model.Repo;
 import com.teju.githubaccess.model.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -12,34 +11,40 @@ import java.util.List;
 @Service
 public class GitHubClient {
 
-    @Autowired
-    private WebClient webClient;
+    private final WebClient webClient;
 
-    // Supports both ORG and USER
+    public GitHubClient(WebClient webClient) {
+        this.webClient = webClient;
+    }
+
     public List<Repo> getRepos(String org) {
         try {
-            // Try organization first
             return webClient.get()
                     .uri("/orgs/{org}/repos?per_page=100", org)
                     .retrieve()
+                    .onStatus(status -> status.isError(), response ->
+                            response.bodyToMono(String.class)
+                                    .map(msg -> new RuntimeException("GitHub API error (org repos): " + msg))
+                    )
                     .bodyToFlux(Repo.class)
                     .collectList()
                     .block();
 
         } catch (Exception e) {
-            System.err.println("Org not found, falling back to user repos");
-
+            // fallback to user repos
             try {
-                // Fallback to user repos
                 return webClient.get()
                         .uri("/users/{org}/repos?per_page=100", org)
                         .retrieve()
+                        .onStatus(status -> status.isError(), response ->
+                                response.bodyToMono(String.class)
+                                        .map(msg -> new RuntimeException("GitHub API error (user repos): " + msg))
+                        )
                         .bodyToFlux(Repo.class)
                         .collectList()
                         .block();
 
             } catch (Exception ex) {
-                System.err.println("Error fetching repos: " + ex.getMessage());
                 return Collections.emptyList();
             }
         }
@@ -50,12 +55,15 @@ public class GitHubClient {
             return webClient.get()
                     .uri("/repos/{org}/{repo}/collaborators?per_page=100", org, repo)
                     .retrieve()
+                    .onStatus(status -> status.isError(), response ->
+                            response.bodyToMono(String.class)
+                                    .map(msg -> new RuntimeException("GitHub API error (collaborators): " + msg))
+                    )
                     .bodyToFlux(User.class)
                     .collectList()
                     .block();
 
         } catch (Exception e) {
-            System.err.println("Error fetching collaborators: " + e.getMessage());
             return Collections.emptyList();
         }
     }
