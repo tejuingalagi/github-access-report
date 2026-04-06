@@ -3,18 +3,19 @@
 ## Problem Statement
 
 Organizations often need visibility into who has access to which repositories in GitHub.
-This project provides a service that connects to GitHub, retrieves repository and user access data, and generates a structured access report for a given organization or user.
+This project provides a backend service that connects to GitHub APIs, retrieves repository and collaborator data, and generates a structured access report showing which users have access to which repositories.
 
 ---
 
 ## Features
 
-* Authenticates securely with GitHub using a Personal Access Token
-* Retrieves repositories for a given organization or user
-* Fetches collaborators for each repository
-* Determines access levels (ADMIN / WRITE / READ)
-* Aggregates data to map users → repositories
-* Exposes a REST API endpoint to fetch the report in JSON format
+* Secure authentication with GitHub using Personal Access Token (PAT)
+* Fetch repositories for a given organization or user
+* Retrieve collaborators for each repository
+* Determine access levels (ADMIN / WRITE / READ)
+* Aggregate data to map users → repositories
+* Expose REST API endpoint to fetch report in JSON format
+* Handles both **GitHub organizations and individual users**
 
 ---
 
@@ -37,19 +38,10 @@ http://localhost:8080/api/github/access-report?org=tejuingalagi
 ```json
 [
   {
-    "username": "Anusha03801",
+    "username": "user1",
     "repositories": [
       {
-        "repository": "finance-dashboard-backend",
-        "access": "WRITE"
-      }
-    ]
-  },
-  {
-    "username": "tejuingalagi",
-    "repositories": [
-      {
-        "repository": "github-access-report",
+        "repository": "repo-name",
         "access": "ADMIN"
       }
     ]
@@ -68,6 +60,8 @@ git clone https://github.com/your-username/github-access-report.git
 cd github-access-report
 ```
 
+---
+
 ### 2. Configure GitHub Token
 
 Update `application.yaml`:
@@ -78,25 +72,22 @@ github:
   token: YOUR_GITHUB_PERSONAL_ACCESS_TOKEN
 ```
 
-👉 Generate token from GitHub → Settings → Developer Settings → Personal Access Tokens
+👉 Generate token from:
+GitHub → Settings → Developer Settings → Personal Access Tokens
 
 ---
 
-### 3. Run the application
-
-Using Maven:
+### 3. Run the Application
 
 ```
 mvn spring-boot:run
 ```
 
-Or run the main class in IDE.
+Or run the main class from your IDE.
 
 ---
 
 ### 4. Test the API
-
-Open browser or Postman:
 
 ```
 http://localhost:8080/api/github/access-report?org=your-org
@@ -104,10 +95,18 @@ http://localhost:8080/api/github/access-report?org=your-org
 
 ---
 
+## Swagger UI
+
+```
+http://localhost:8080/swagger-ui.html
+```
+
+---
+
 ## Authentication
 
 * Uses GitHub Personal Access Token (PAT)
-* Token is passed via Authorization header:
+* Token is passed in header:
 
 ```
 Authorization: Bearer <token>
@@ -117,19 +116,17 @@ Authorization: Bearer <token>
 
 ---
 
-## Design & Implementation Details
+## Design & Implementation
 
 ### 1. API Integration
 
 * `/orgs/{org}/repos` → fetch organization repositories
-* Fallback: `/users/{user}/repos` → for user accounts
-* `/repos/{org}/{repo}/collaborators` → fetch access users
+* `/users/{user}/repos` → fallback for user repositories
+* `/repos/{org}/{repo}/collaborators` → fetch collaborators
 
 ---
 
 ### 2. Access Level Mapping
-
-Access is derived from GitHub permissions:
 
 * `admin = true` → ADMIN
 * `push = true` → WRITE
@@ -141,18 +138,19 @@ Access is derived from GitHub permissions:
 
 * Data is transformed into:
 
-  ```
-  User → List of Repositories + Access
-  ```
-* Uses `ConcurrentHashMap` for thread-safe operations
+```
+User → List of Repositories + Access
+```
+
+* Uses `ConcurrentHashMap` for thread-safe aggregation
 
 ---
 
 ### 4. Performance (Scale Handling)
 
-* Uses `parallelStream()` for processing repositories concurrently
+* Uses `parallelStream()` for concurrent processing of repositories
 * Avoids sequential API calls
-* Designed to handle:
+* Designed to support:
 
   * 100+ repositories
   * 1000+ users
@@ -161,21 +159,19 @@ Access is derived from GitHub permissions:
 
 ### 5. Error Handling
 
-* Gracefully handles API failures
-* Logs errors without breaking application flow
-* Returns empty response if data cannot be fetched
+* Handles API errors using `onStatus()` in WebClient
+* Prevents application crashes on failures
+* Returns empty responses in case of partial failures
 
 ---
 
 ## Assumptions & Limitations
 
-* GitHub API restricts collaborator data for public organizations
-* Collaborator details are only available if:
-
-  * The authenticated user has access to the repository
-
-👉 Example:
-For public orgs like `google`, collaborator data may not be returned.
+* Supports both GitHub organizations and individual users
+* GitHub API may restrict collaborator data for public repositories
+* Requires appropriate permissions in the provided token
+* Pagination is currently limited to 100 results per API call
+* WebClient is used with blocking (`.block()`) for simplicity; can be made fully reactive in production
 
 ---
 
@@ -204,9 +200,9 @@ config/       → WebClient configuration
 
 This project demonstrates:
 
-* Clean architecture
+* Clean architecture and separation of concerns
 * Efficient API usage
-* Scalable design
+* Scalable design using parallel processing
 * Proper handling of real-world API limitations
 
 ---
